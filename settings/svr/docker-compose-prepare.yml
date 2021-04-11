@@ -1,0 +1,8 @@
+
+version: "3.3"
+services:
+  svr-prepare:
+    image: cybagard/nsrllookup-svr:latest
+    volumes:
+      - ../data/nsrlsvr/:/usr/local/share/nsrlsvr/
+    entrypoint: "/prepare-hash-set.sh"
