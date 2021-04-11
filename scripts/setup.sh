@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker exec -it es ./bin/elasticsearch-setup-passwords interactive
+docker exec -it plaso-es ./bin/elasticsearch-setup-passwords interactive
