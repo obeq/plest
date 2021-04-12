@@ -33,16 +33,24 @@ docker-compose restart kibana
 
 ## Running Plaso
 
+Extract data, including hashes, from `testdata/evidences/`.
 ```bash
 docker run -v ${pwd}/testdata/:/data log2timeline/plaso log2timeline --hashers all /data/evidences.plaso /data/evidences
 ```
 
+Enrich the data with data from nsrlsvr.
 ```bash
-docker run --network plest_default -v ${pwd}/testdata/:/data log2timeline/plaso psort --analysis nsrlsvr --nsrlsvr-hash md5 --nsrlsvr-host svr --nsrlsvr-port 9120 -w /data/output.log /data/evidences.plaso
+docker run --network plest_default -v ${pwd}/testdata/:/data log2timeline/plaso psort --analysis nsrlsvr --nsrlsvr-hash md5 --nsrlsvr-host svr --nsrlsvr-port 9120 -o null /data/evidences.plaso
 ```
 
+Write the data to timeline.log. Use `-o elasticsearch` to output data to Elasticsearch instead.
 ```bash
 docker run -v ${pwd}/testdata/:/data log2timeline/plaso psort -w /data/timeline.log /data/evidences.plaso
+```
+
+To drop into a shell at the Plaso container, run:
+```bash
+docker run -v ./testdata/:/data --entrypoint=/bin/bash --network plest_default -it log2timeline/plaso
 ```
 
 ## NSRLlookup
