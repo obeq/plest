@@ -48,6 +48,11 @@ Write the data to timeline.log. Use `-o elasticsearch` to output data to Elastic
 docker run -v ${pwd}/testdata/:/data log2timeline/plaso psort -w /data/timeline.log /data/evidences.plaso
 ```
 
+To drop into a shell at the Plaso container, run:
+```bash
+docker run -v ./testdata/:/data --entrypoint=/bin/bash --network plest_default -it log2timeline/plaso
+```
+
 ## NSRLlookup
 
 NSRLlookup is based on [nsrllookup](https://github.com/cybagard/nsrllookup) by cybagard.
