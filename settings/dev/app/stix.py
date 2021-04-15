@@ -31,6 +31,7 @@ class Indicator(BaseModel):
         obj['_index'] = 'indicators'
 
         source = dict()
+        source['id'] = self.id
         source['indicates'] = self.indicates.id
         
         for key, value in self.patterns.items():
@@ -137,5 +138,5 @@ def read_json(
             console.print(tree)
 
 if __name__=='__main__':
-    read_json()
+    read_json(auto_envvar_prefix='STIX')
 

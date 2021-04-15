@@ -62,6 +62,11 @@ services:
     build: settings/dev
     volumes:
       - ~/stix/:/stix
+    environment:
+      - STIX_ES_HOST=es:9200
+      - STIX_ES_USERNAME=elastic
+      - STIX_ES_PASSWORD=changeme
+    command: python3 stix.py /stix/*.json
 
 volumes:
   data01:
