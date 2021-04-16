@@ -43,6 +43,11 @@ Enrich the data with data from nsrlsvr.
 docker run --network plest_default -v ${pwd}/testdata/:/data log2timeline/plaso psort --analysis nsrlsvr --nsrlsvr-hash md5 --nsrlsvr-host svr --nsrlsvr-port 9120 -o null /data/evidences.plaso
 ```
 
+Send the data to Elasticsearch.
+```bash
+docker run --network=plest_default -v ${pwd}/testdata:/data -v ${pwd}/settings/plaso/elasticsearch.mappings:/home/plaso/data/elasticsearch.mappings log2timeline/plaso psort -o elastic --server elasticsearch --index_name psort /data/evidences.plaso
+```
+
 Write the data to timeline.log. Use `-o elasticsearch` to output data to Elasticsearch instead.
 ```bash
 docker run -v ${pwd}/testdata/:/data log2timeline/plaso psort -w /data/timeline.log /data/evidences.plaso

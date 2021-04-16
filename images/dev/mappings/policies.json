@@ -1,0 +1,93 @@
+PUT _index_template/indicators
+{
+  "index_patterns": [
+    "indicators"
+  ],
+  "composed_of": [
+    "logs-mappings",
+    "logs-settings"
+  ]
+}
+
+PUT /_enrich/policy/indicator-md5
+{
+  "match": {
+    "indices": "indicators",
+    "match_field": "hash.md5",
+    "enrich_fields": ["id"]
+  }
+}
+
+PUT _enrich/policy/indicator-md5/_execute
+
+PUT /_enrich/policy/indicator-sha1
+{
+  "match": {
+    "indices": "indicators",
+    "match_field": "hash.sha1",
+    "enrich_fields": ["id"]
+  }
+}
+
+PUT _enrich/policy/indicator-sha1/_execute
+
+PUT /_enrich/policy/indicator-sha256
+{
+  "match": {
+    "indices": "indicators",
+    "match_field": "hash.sha256",
+    "enrich_fields": ["id"]
+  }
+}
+
+PUT _enrich/policy/indicator-sha256/_execute
+
+PUT _ingest/pipeline/file-hashes
+{
+  "description": "Enriches files with indicators",
+  "version": 1,
+  "processors": [
+    {
+      "enrich": {
+        "field": "file.hash.md5",
+        "policy_name": "indicator-md5",
+        "target_field": "indicator",
+        "ignore_missing": true,
+        "description": "MD5"
+      }
+    },
+    {
+      "enrich": {
+        "field": "file.hash.sha1",
+        "policy_name": "indicator-sha1",
+        "target_field": "indicator",
+        "ignore_missing": true,
+        "description": "SHA1"
+      }
+    },
+    {
+      "enrich": {
+        "field": "file.hash.sha256",
+        "policy_name": "indicator-sha256",
+        "target_field": "indicator",
+        "ignore_missing": true,
+        "description": "SHA256"
+      }
+    }
+  ]
+}
+
+PUT _index_template/psort
+{
+  "template": {
+    "settings": {
+      "index": {
+        "default_pipeline": "file-hashes"
+      }
+    }
+  },
+  "index_patterns": [
+    "psort"
+  ],
+  "composed_of": []
+}

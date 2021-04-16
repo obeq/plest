@@ -58,5 +58,15 @@ services:
     ports:
       - 5000:5000  
 
+  dev:
+    build: images/dev
+    volumes:
+      - ./data/stix/:/stix
+    environment:
+      - STIX_ES_HOST=es:9200
+      - STIX_ES_USERNAME=elastic
+      - STIX_ES_PASSWORD=changeme
+    command: python3 stix.py /stix/*.json
+
 volumes:
   data01:
