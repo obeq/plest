@@ -32,7 +32,8 @@ class Indicator(BaseModel):
 
         source = dict()
         source['id'] = self.id
-        source['indicates'] = self.indicates.id
+        if self.indicates:
+            source['indicates'] = self.indicates.id
         
         for key, value in self.patterns.items():
             source[key] = value
@@ -49,6 +50,48 @@ pattern_fields = {
     "file:hashes.'SHA-256'": 'hash.sha256',
     "ipv4-addr:value": "ip.address"
 }
+
+
+def stix_generator(filename):
+    """Reads stix from filename and returns ES ready indicator."""
+    with open(filename) as fd:
+        stixes = orjson.loads(fd.read())['objects']
+    
+    for stix in stixes:
+        # if stix['type'] == 'malware':
+            # malware = Malware(**stix)
+            # malwares[malware.id] = malware
+
+        if stix['type'] == 'indicator':
+            patterns = dict()
+            stix['pattern'] = stix.get('pattern','').strip('[]')
+            for pattern in stix['pattern'].split(' '):
+                if '=' in pattern:
+                    key, value = pattern.split('=')
+                    key = pattern_fields[key]
+                    patterns[key] = value.strip("'")
+            stix['patterns'] = patterns
+
+            indicator = Indicator(**stix)
+            # indicators[indicator.id] = indicator
+
+            yield indicator.to_es()
+
+        
+        # if stix['type'] == 'relationship':
+        #     source = stix['source_ref']
+        #     target = stix['target_ref']
+        #     relations.append((source, target))
+
+    # for source, target in relations:
+    #     if source in indicators and target in malwares:
+    #         source_indicator = indicators[source]
+    #         target_malware = malwares[target]
+
+    #         target_malware.indicators.append(source_indicator)
+    #         source_indicator.indicates = target_malware
+
+
 
 
 @click.command()
@@ -80,52 +123,8 @@ def read_json(
         es = None
 
     for filename in filenames:
-        malwares = dict()
-        indicators = dict()
-        relations = list()
-
-        table = Table(title=filename)
-        tree = Tree(filename)
-
-        with open(filename) as fd:
-            stixes = orjson.loads(fd.read())['objects']
-        
-        for stix in stixes:
-            if stix['type'] == 'malware':
-                malware = Malware(**stix)
-                malwares[malware.id] = malware
-
-            if stix['type'] == 'indicator':
-                patterns = dict()
-                stix['pattern'] = stix.get('pattern','').strip('[]')
-                for pattern in stix['pattern'].split(' '):
-                    if '=' in pattern:
-                        key, value = pattern.split('=')
-                        key = pattern_fields[key]
-                        patterns[key] = value.strip("'")
-                stix['patterns'] = patterns
-
-                indicator = Indicator(**stix)
-                indicators[indicator.id] = indicator
-            
-            if stix['type'] == 'relationship':
-                source = stix['source_ref']
-                target = stix['target_ref']
-                relations.append((source, target))
-
-        for source, target in relations:
-            if source in indicators and target in malwares:
-                source_indicator = indicators[source]
-                target_malware = malwares[target]
-
-                target_malware.indicators.append(source_indicator)
-                source_indicator.indicates = target_malware
-
         if es:
-            upload = list()
-            for indicator in indicators.values():
-                upload.append(indicator.to_es())
-            bulk(es, upload)
+            bulk(es, stix_generator(filename))
 
 
         if tree_view:
