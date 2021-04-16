@@ -10,6 +10,7 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
+console=Console()
 
 class Malware(BaseModel):
     id: str
@@ -54,6 +55,7 @@ pattern_fields = {
 
 def stix_generator(filename):
     """Reads stix from filename and returns ES ready indicator."""
+    console.log(f"Reading from {filename}.")
     with open(filename) as fd:
         stixes = orjson.loads(fd.read())['objects']
     
@@ -67,7 +69,10 @@ def stix_generator(filename):
             stix['pattern'] = stix.get('pattern','').strip('[]')
             for pattern in stix['pattern'].split(' '):
                 if '=' in pattern:
-                    key, value = pattern.split('=')
+                    key, value = pattern.split('=', 1)
+                    if key not in pattern_fields:
+                        console.log(f"No pattern defined for '{key}', skipping.")
+                        continue
                     key = pattern_fields[key]
                     patterns[key] = value.strip("'")
             stix['patterns'] = patterns
@@ -92,8 +97,6 @@ def stix_generator(filename):
     #         source_indicator.indicates = target_malware
 
 
-
-
 @click.command()
 @click.argument('filenames', nargs=-1, type=click.Path())
 @click.option('-t', '--tree_view', is_flag=True)
@@ -107,9 +110,11 @@ def read_json(
     es_username:str = None,
     es_password:str = None):
     """Read stix from files."""
-    console=Console()
     
+    console.log("Stixreader starting...")
+
     if es_host:
+        console.log("Connecting to Elasticsearch...")
         if es_username:
             if not es_password:
                 es_password = click.prompt('Enter password', hide_input=True)
@@ -127,14 +132,13 @@ def read_json(
             bulk(es, stix_generator(filename))
 
 
-        if tree_view:
-            for malware in malwares.values():
-                malware_tree = tree.add(malware.name)
-                for indicator in malware.indicators:
-                    for key, value in indicator.patterns.items():
-                        malware_tree.add(f"{key}={value}")
+            # for malware in malwares.values():
+            #     malware_tree = tree.add(malware.name)
+            #     for indicator in malware.indicators:
+            #         for key, value in indicator.patterns.items():
+            #             malware_tree.add(f"{key}={value}")
 
-            console.print(tree)
+            # console.print(tree)
 
 if __name__=='__main__':
     read_json(auto_envvar_prefix='STIX')
