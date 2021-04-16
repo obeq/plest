@@ -59,7 +59,7 @@ services:
       - 5000:5000  
 
   dev:
-    build: settings/dev
+    build: images/dev
     volumes:
       - ~/stix/:/stix
     environment:
