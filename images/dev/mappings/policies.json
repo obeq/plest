@@ -1,3 +1,14 @@
+PUT _index_template/indicators
+{
+  "index_patterns": [
+    "indicators"
+  ],
+  "composed_of": [
+    "logs-mappings",
+    "logs-settings"
+  ]
+}
+
 PUT /_enrich/policy/indicator-md5
 {
   "match": {

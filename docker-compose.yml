@@ -61,7 +61,7 @@ services:
   dev:
     build: images/dev
     volumes:
-      - ~/stix/:/stix
+      - ./data/stix/:/stix
     environment:
       - STIX_ES_HOST=es:9200
       - STIX_ES_USERNAME=elastic
