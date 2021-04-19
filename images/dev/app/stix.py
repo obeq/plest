@@ -3,6 +3,7 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 from rich.tree import Tree
+from rich.traceback import install
 import orjson
 from pydantic import BaseModel
 from typing import Optional, List, Dict, TextIO
@@ -11,6 +12,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
 console=Console()
+install(show_locals=True)
 
 class Malware(BaseModel):
     id: str
@@ -97,7 +99,10 @@ class StixReader():
 
                     yield indicator.to_es(self.index)
                 
-        for indicator in self.indicators:
+    def flush_unmatched(self):
+        """Returns the indicators that haven't been matched to any malware (hopefully none)."""
+
+        for indicator in self.indicators.values():
             yield indicator.to_es(self.index)
 
 
@@ -131,6 +136,8 @@ def read_json(
     else:
         es = None
 
+    reader = StixReader('indicators')
+
     for filename in filenames:
         
         console.log(f"Reading from {filename}.")
@@ -138,7 +145,15 @@ def read_json(
             stixes = orjson.loads(fd.read())['objects']
         
             if es:
-                bulk(es, stix_generator(stixes))
+                successful, errors = bulk(es, reader.stix_converter(stixes))
+                console.log(f"{successful} stixes imported successfully.")
+
+    console.log(f"After importing, {len(reader.indicators)} indicators haven't been matched.")
+    
+    if es:
+        console.log(f"Flushing...")
+        successful, errors = bulk(es, reader.flush_unmatched())
+        console.log(f"{successful} indicators imported successfully.")
 
             # for malware in malwares.values():
             #     malware_tree = tree.add(malware.name)
