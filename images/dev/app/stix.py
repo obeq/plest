@@ -10,6 +10,8 @@ from typing import Optional, List, Dict, TextIO
 from datetime import datetime
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
+from glob import glob
+from itertools import chain
 
 console=Console()
 install(show_locals=True)
@@ -121,6 +123,9 @@ def read_json(
     """Read stix from files."""
     
     console.log("Stixreader starting...")
+
+    filenames = [glob(filename) for filename in filenames]
+    filenames = chain(*filenames)
 
     if es_host:
         console.log("Connecting to Elasticsearch...")
