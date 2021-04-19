@@ -5,7 +5,7 @@ from rich.table import Table
 from rich.tree import Tree
 import orjson
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, TextIO
 from datetime import datetime
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
@@ -26,10 +26,10 @@ class Indicator(BaseModel):
 
     indicates: Optional[Malware]
 
-    def to_es(self) -> Dict:
+    def to_es(self, index: str) -> Dict:
         obj = dict()
         obj['_id'] = self.id
-        obj['_index'] = 'indicators'
+        obj['_index'] = index
 
         source = dict()
         source['id'] = self.id
@@ -53,48 +53,52 @@ pattern_fields = {
 }
 
 
-def stix_generator(filename):
-    """Reads stix from filename and returns ES ready indicator."""
-    console.log(f"Reading from {filename}.")
-    with open(filename) as fd:
-        stixes = orjson.loads(fd.read())['objects']
-    
-    for stix in stixes:
-        # if stix['type'] == 'malware':
-            # malware = Malware(**stix)
-            # malwares[malware.id] = malware
+class StixReader():
+    """Reads stix from json files and returns ES ready indicators."""
 
-        if stix['type'] == 'indicator':
-            patterns = dict()
-            stix['pattern'] = stix.get('pattern','').strip('[]')
-            for pattern in stix['pattern'].split(' '):
-                if '=' in pattern:
-                    key, value = pattern.split('=', 1)
-                    if key not in pattern_fields:
-                        console.log(f"No pattern defined for '{key}', skipping.")
-                        continue
-                    key = pattern_fields[key]
-                    patterns[key] = value.strip("'")
-            stix['patterns'] = patterns
+    def __init__(self, index:str = 'indicators'):
+        self.index = index
+        self.malwares = dict()
+        self.indicators = dict()
 
-            indicator = Indicator(**stix)
-            # indicators[indicator.id] = indicator
+    def stix_converter(self, stixes: List[Dict]):
+        """Converts stix dicts to ES ready indicators."""
 
-            yield indicator.to_es()
+        for stix in stixes:
+            if stix['type'] == 'malware':
+                malware = Malware(**stix)
+                self.malwares[malware.id] = malware
 
-        
-        # if stix['type'] == 'relationship':
-        #     source = stix['source_ref']
-        #     target = stix['target_ref']
-        #     relations.append((source, target))
+            if stix['type'] == 'indicator':
+                patterns = dict()
+                stix['pattern'] = stix.get('pattern','').strip('[]')
+                for pattern in stix['pattern'].split(' '):
+                    if '=' in pattern:
+                        key, value = pattern.split('=', 1)
+                        if key not in pattern_fields:
+                            console.log(f"No pattern defined for '{key}', skipping.")
+                            continue
+                        key = pattern_fields[key]
+                        patterns[key] = value.strip("'")
+                stix['patterns'] = patterns
 
-    # for source, target in relations:
-    #     if source in indicators and target in malwares:
-    #         source_indicator = indicators[source]
-    #         target_malware = malwares[target]
+                indicator = Indicator(**stix)
+                self.indicators[indicator.id] = indicator
 
-    #         target_malware.indicators.append(source_indicator)
-    #         source_indicator.indicates = target_malware
+            if stix['type'] == 'relationship':
+                source = stix['source_ref']
+                target = stix['target_ref']
+
+                if source in self.indicators and target in self.malwares:
+                    indicator = self.indicators.pop(source)
+                    malware = self.malwares.get(target)
+
+                    indicator.indicates = malware
+
+                    yield indicator.to_es(self.index)
+                
+        for indicator in self.indicators:
+            yield indicator.to_es(self.index)
 
 
 @click.command()
@@ -128,9 +132,13 @@ def read_json(
         es = None
 
     for filename in filenames:
-        if es:
-            bulk(es, stix_generator(filename))
-
+        
+        console.log(f"Reading from {filename}.")
+        with open(filename) as fd:
+            stixes = orjson.loads(fd.read())['objects']
+        
+            if es:
+                bulk(es, stix_generator(stixes))
 
             # for malware in malwares.values():
             #     malware_tree = tree.add(malware.name)
