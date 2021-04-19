@@ -8,10 +8,11 @@ import orjson
 from pydantic import BaseModel
 from typing import Optional, List, Dict, TextIO
 from datetime import datetime
-from elasticsearch import Elasticsearch
-from elasticsearch.helpers import bulk
+from elasticsearch import AsyncElasticsearch
+from elasticsearch.helpers import async_bulk
 from glob import glob
 from itertools import chain
+import asyncio
 
 console=Console()
 install(show_locals=True)
@@ -65,7 +66,7 @@ class StixReader():
         self.malwares = dict()
         self.indicators = dict()
 
-    def stix_converter(self, stixes: List[Dict]):
+    async def stix_converter(self, stixes: List[Dict]):
         """Converts stix dicts to ES ready indicators."""
 
         for stix in stixes:
@@ -101,20 +102,44 @@ class StixReader():
 
                     yield indicator.to_es(self.index)
                 
-    def flush_unmatched(self):
+    async def flush_unmatched(self):
         """Returns the indicators that haven't been matched to any malware (hopefully none)."""
 
         for indicator in self.indicators.values():
             yield indicator.to_es(self.index)
 
 
+async def read_json(filenames: List[str], es: AsyncElasticsearch):
+    """Reads stixes from jsons and posts them to Elasticsearch."""
+
+    info = await es.info()
+    print(f"Connected to Elasticsearch, version {info['version']['number']}.")
+
+    reader = StixReader('indicators')
+    for filename in filenames:
+        console.log(f"Reading from {filename}.")
+        with open(filename) as fd:
+            stixes = orjson.loads(fd.read())['objects']
+        
+            successful, errors = await async_bulk(es, reader.stix_converter(stixes))
+            console.log(f"{successful} stixes imported successfully.")
+
+    console.log(f"After importing, {len(reader.indicators)} indicators haven't been matched.")
+    
+    console.log(f"Flushing...")
+    successful, errors = await async_bulk(es, reader.flush_unmatched())
+    console.log(f"{successful} indicators imported successfully.")
+
+    await es.close()
+
+         
 @click.command()
 @click.argument('filenames', nargs=-1, type=click.Path())
 @click.option('-t', '--tree_view', is_flag=True)
 @click.option('-e', '--es_host')
 @click.option('-u', '--es_username')
 @click.option('-p', '--es_password')
-def read_json(
+def main(
     filenames: List,
     tree_view: bool,
     es_host:str = None,
@@ -132,42 +157,17 @@ def read_json(
         if es_username:
             if not es_password:
                 es_password = click.prompt('Enter password', hide_input=True)
-            es = Elasticsearch(es_host, http_auth=(es_username, es_password))
+            es = AsyncElasticsearch(es_host, http_auth=(es_username, es_password))
         else:
-            es = Elasticsearch(es_host)
+            es = AsyncElasticsearch(es_host)
 
-        info = es.info()
-        print(f"Connected to {es_host}, version {info['version']['number']}")
+        asyncio.run(read_json(filenames, es))
+
     else:
         es = None
 
-    reader = StixReader('indicators')
-
-    for filename in filenames:
-        
-        console.log(f"Reading from {filename}.")
-        with open(filename) as fd:
-            stixes = orjson.loads(fd.read())['objects']
-        
-            if es:
-                successful, errors = bulk(es, reader.stix_converter(stixes))
-                console.log(f"{successful} stixes imported successfully.")
-
-    console.log(f"After importing, {len(reader.indicators)} indicators haven't been matched.")
-    
-    if es:
-        console.log(f"Flushing...")
-        successful, errors = bulk(es, reader.flush_unmatched())
-        console.log(f"{successful} indicators imported successfully.")
-
-            # for malware in malwares.values():
-            #     malware_tree = tree.add(malware.name)
-            #     for indicator in malware.indicators:
-            #         for key, value in indicator.patterns.items():
-            #             malware_tree.add(f"{key}={value}")
-
-            # console.print(tree)
+           # console.print(tree)
 
 if __name__=='__main__':
-    read_json(auto_envvar_prefix='STIX')
+    main(auto_envvar_prefix='STIX')
 
