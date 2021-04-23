@@ -2,12 +2,16 @@ version: "3.3"
 services:
 
   plaso:
+    profiles:
+      - plaso
     image: log2timeline/plaso
     container_name: plaso
     volumes:
       - ./data/plaso:/data/
 
   es:
+    profiles:
+      - elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch:7.12.0
     container_name: plaso-es
     volumes:
@@ -28,6 +32,8 @@ services:
       - "9200:9200"
 
   kibana:
+    profiles:
+      - elasticsearch
     image: docker.elastic.co/kibana/kibana:7.12.0
     container_name: kibana
     ports:
@@ -40,11 +46,15 @@ services:
       - es
 
   svr:
+    profiles:
+      - plaso
     image: cybagard/nsrllookup-svr:latest
     volumes:
       - ./data/nsrlsvr/:/usr/local/share/nsrlsvr/
 
   api:
+    profiles:
+      - plaso
     image: cybagard/nsrllookup-api:latest
     depends_on:
       - svr
@@ -59,6 +69,8 @@ services:
       - 5000:5000  
 
   dev:
+    profiles:
+      - manual
     build: images/dev
     volumes:
       - ./data/stix/:/stix

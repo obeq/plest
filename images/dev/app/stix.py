@@ -16,15 +16,15 @@ from itertools import chain
 import asyncio
 
 console = Console()
-install(show_locals=False)
+install(show_locals=False)  # Installs rich as exception traceback printer. Makes errors look prettier...
 
 
 class Malware(BaseModel):
     id: str
     name: Optional[str]
-    created: datetime
+#    created: datetime
 
-    indicators: Optional[List] = []
+#    indicators: Optional[List] = []
 
 
 class Indicator(BaseModel):
@@ -41,7 +41,7 @@ class Indicator(BaseModel):
         source = dict()
         source['id'] = self.id
         if self.indicates:
-            source['indicates'] = self.indicates.id
+            source['indicates'] = self.indicates.dict()
 
         for key, value in self.patterns.items():
             source[key] = value
@@ -56,7 +56,14 @@ pattern_fields = {
     "file:hashes.MD5": 'hash.md5',
     "file:hashes.'SHA-1'": 'hash.sha1',
     "file:hashes.'SHA-256'": 'hash.sha256',
-    "ipv4-addr:value": "ip.address"
+    "ipv4-addr:value": "ip.address",
+    "artifact:hashes.MD5": 'hash.md5',
+    "artifact:hashes.'SHA-1'": 'hash.sha1',
+    "artifact:hashes.'SHA-256'": 'hash.sha256',
+    "email-addr": "user.email",                             # There's a RFC proposal that gives better support for these fields in ECS.
+    "email-message": "labels.email-message",                # There's not really any support for this in ECS.
+    "windows-registry-key": "registry.path",                # Assumption. This is for values such as HKLM\SOFTWARE\Microsoft...
+                                                                # That is, including the hive name and the actual key.
 }
 
 
