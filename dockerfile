@@ -21,6 +21,6 @@ RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; els
 ARG INSTALL_JUPYTER=true
 RUN bash -c "if [ $INSTALL_JUPYTER == 'true' ] ; then pip install jupyterlab ; fi"
 
-COPY ./app/*.py /app
+COPY ./plest/*.py /app
 # ENV PYTHONPATH=/w
 CMD ["/bin/bash", "-c", "python3 stix.py /stix/*.json"]
