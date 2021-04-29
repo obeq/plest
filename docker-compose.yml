@@ -10,11 +10,11 @@ services:
   #     - ./data/plaso:/data/
 
   dev:
-    profiles:
-      - manual
     build: .
     volumes:
       - ./data/plest/:/data
+    networks: 
+      - plest
     environment:
       - STIX_ES_HOST=es:9200
       - STIX_ES_USERNAME=elastic
@@ -23,3 +23,6 @@ services:
 
 volumes:
   data01:
+
+networks: 
+  plest:
